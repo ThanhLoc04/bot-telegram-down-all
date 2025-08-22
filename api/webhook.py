@@ -1,14 +1,10 @@
 import requests
-from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 from io import BytesIO
 import os
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # Lấy từ biến môi trường Vercel
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Domain Vercel của bạn
-
-app = FastAPI()
+BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")  # có thể set env hoặc dán trực tiếp
 
 # Cache link video
 video_cache = {}
@@ -107,21 +103,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await query.message.reply_text(f"⚠️ Lỗi tải file: {e}")
 
-# ================== TELEGRAM APP ==================
-application = Application.builder().token(BOT_TOKEN).build()
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-application.add_handler(CallbackQueryHandler(button_callback))
+# ================== MAIN ==================
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
 
-# ================== FASTAPI WEBHOOK ==================
-@app.post("/api/webhook")
-async def webhook(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, application.bot)
-    await application.initialize()
-    await application.process_update(update)
-    return {"ok": True}
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(button_callback))
 
-@app.get("/")
-async def home():
-    return {"status": "🤖 Downr Telegram Bot chạy trên Vercel!"}
+    print("🤖 Bot đang chạy bằng polling...")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
